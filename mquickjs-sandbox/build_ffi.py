@@ -215,11 +215,21 @@ int sandbox_eval(SandboxContext *sctx, const char *code, size_t code_len,
 
     if (JS_IsException(val)) {
         if (error_buf && error_buf_size > 0) {
-            JS_GetErrorStr(sctx->ctx, error_buf, error_buf_size);
-            if (strlen(error_buf) == 0) {
+            JSValue exception_val = JS_GetException(sctx->ctx);
+            JSValue val = JS_ToString(sctx->ctx, exception_val);
+            if (JS_IsString(sctx->ctx, val)) {
+                JSCStringBuf buf;
+                const char *str = JS_ToCString(sctx->ctx, val, &buf);
+                if (str) {
+                    strncpy(error_buf, str, error_buf_size - 1);
+                } else {
+                    strncpy(error_buf, "Unknown error", error_buf_size - 1);
+                }
+            } else {
                 strncpy(error_buf, "Unknown error", error_buf_size - 1);
-                error_buf[error_buf_size - 1] = 0;
             }
+            error_buf[error_buf_size - 1] = 0;
+            /* No JS_FreeValue needed in mquickjs */
         }
         return 1;
     }
